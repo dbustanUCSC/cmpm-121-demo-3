@@ -16,6 +16,7 @@ const PIT_SPAWN_PROBABILITY = 0.1;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 
+//const pitMap: Map<string, leaflet.Layer> = new Map<string, leaflet.Layer>();
 const map = leaflet.map(mapContainer, {
   center: MERRILL_CLASSROOM,
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -37,7 +38,16 @@ const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
-let points = 0;
+interface Coin {
+  xPos: number;
+  yPos: number;
+  index: number;
+}
+
+const inventory: Coin[] = [];
+//This keeps track of our known tiles
+const knownTiles: Map<string, Coin[]> = new Map<string, Coin[]>();
+
 const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
   navigator.geolocation.watchPosition((position) => {
@@ -49,9 +59,12 @@ sensorButton.addEventListener("click", () => {
 });
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
-statusPanel.innerHTML = "No points yet...";
+statusPanel.innerHTML = "No coins yet...";
 
 function makePit(i: number, j: number) {
+  if (knownTiles.get(`${i}, ${j}`)) {
+    return knownTiles.get(`${i}, ${j}`);
+  }
   const bounds = leaflet.latLngBounds([
     [
       MERRILL_CLASSROOM.lat + i * TILE_DEGREES,
@@ -62,39 +75,54 @@ function makePit(i: number, j: number) {
       MERRILL_CLASSROOM.lng + (j + 1) * TILE_DEGREES,
     ],
   ]);
+  const coinsInPit: Coin[] = [];
+  knownTiles.set(`${i},${j}`, coinsInPit);
 
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-
   pit.bindPopup(() => {
-    let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
+    const numofCoins = Number((luck(`${i}, ${j}`) * 10).toFixed(0));
+    for (let k = 0; k < numofCoins; k++) {
+      coinsInPit.push({
+        xPos: i,
+        yPos: j,
+        index: k,
+      });
+    }
+    //let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
     const container = document.createElement("div");
     container.innerHTML = `
-                <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
-                <button id="poke">poke</button> </div>
+                <div>There is a pit here at "${i},${j}". It has <span id="value">${coinsInPit.length} </span> coins.</div>
+                <button id="poke">take</button> </div>
                 <button id="deposit">deposit</button>`;
     const poke = container.querySelector<HTMLButtonElement>("#poke")!;
+    const NO_COINS = 0;
+    let coin: Coin;
     poke.addEventListener("click", () => {
-      value--;
-      container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
-        value.toString();
-      points++;
-      statusPanel.innerHTML = `${points} points accumulated`;
+      if (coinsInPit.length > NO_COINS) {
+        coin = coinsInPit.pop()!;
+        console.log(coin);
+        inventory.push(coin);
+        container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
+          coinsInPit.length.toString();
+        statusPanel.innerHTML = `You have ${inventory.length} coins!`;
+      }
     });
     const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
     deposit.addEventListener("click", () => {
-      const NO_POINTS = 0;
-      if (points <= NO_POINTS) return;
-      points--;
-      value++;
+      if (inventory.length <= NO_COINS) return;
+      coin = inventory.pop()!;
+      console.log(coin);
+      coinsInPit.push(coin);
       container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
-        value.toString();
+        coinsInPit.length.toString();
       statusPanel.innerHTML =
-        points == NO_POINTS
-          ? `No points yet...`
-          : `${points} points accumulated`;
+        inventory.length == NO_COINS
+          ? `No coins yet...`
+          : `You have ${inventory.length} coins!`;
     });
     return container;
   });
+  //pitMap.set(`${i}, ${j}`, pit);
   pit.addTo(map);
 }
 
