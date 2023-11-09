@@ -4,12 +4,19 @@ import leaflet from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
 
+/*interface Coin {
+    i: number,
+    j: number,
+    index: number,
+}*/
 
-const MERRILL_CLASSROOM = leaflet.latLng({
+
+
+export const MERRILL_CLASSROOM = leaflet.latLng({
     lat: 36.9995,
-    lng: - 122.0533
+    lng: -122.0533,
 });
-
+  
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
