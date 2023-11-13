@@ -26,32 +26,23 @@ export class Board {
     if (!this.knownCells.has(key)) {
       this.knownCells.set(key, cell)!;
     }
+    
     return cell;
-  }
-
-  createCanonicalCell(i: number, j: number): Cell | undefined {
-    const cell: Cell = { i: i, j: j };
-    return this.getCanonicalCell(cell);
   }
 
   getCellForPoint(point: leaflet.LatLng): Cell {
     const i = Math.floor(point.lat / this.tileWidth);
     const j = Math.floor(point.lng / this.tileWidth);
     return this.getCanonicalCell({ i, j })!;
+
   }
 
   getCellBounds(cell: Cell): leaflet.LatLngBounds {
-    const bounds = leaflet.latLngBounds([
-      [
-        MERRILL_CLASSROOM.lat + cell.i * TILE_DEGREES,
-        MERRILL_CLASSROOM.lng + cell.j * TILE_DEGREES,
-      ],
-      [
-        MERRILL_CLASSROOM.lat + (cell.i + 1) * TILE_DEGREES,
-        MERRILL_CLASSROOM.lng + (cell.j + 1) * TILE_DEGREES,
-      ],
-    ]);
-    return bounds;
+    const lat = cell.i * this.tileWidth;
+    const lng = cell.j * this.tileWidth;
+    const corner1 = leaflet.latLng(lat, lng);
+    const corner2 = leaflet.latLng(lat + this.tileWidth, lng + this.tileWidth);
+    return leaflet.latLngBounds(corner1, corner2);
   }
 
   getCellsNearPoint(point: leaflet.LatLng): Cell[] {
@@ -70,11 +61,9 @@ export class Board {
         j++
       ) {
         const cellInRadius: Cell = { i: originCell.i + i, j: originCell.j + j };
-        const canonicalCell: Cell | undefined =
-          this.getCanonicalCell(cellInRadius);
-        if (canonicalCell != undefined) {
-          resultCells.push(canonicalCell);
-        }
+        const canonicalCell: Cell  =
+        this.getCanonicalCell(cellInRadius);
+        resultCells.push(canonicalCell); 
       }
     }
 

@@ -63,18 +63,16 @@ const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No coins yet...";
 
 const allPitData = new Map<Cell, Coin[]>();
-
 function makePit(i: number, j: number) {
-  const currentCell: Cell | undefined = board.createCanonicalCell(i, j);
-
-  if (currentCell != undefined) {
+  const currentCell: Cell = { i: i, j: j };
     let coinDiv = document.createElement("div");
-    const bounds = board.getCellBounds(currentCell);
-    const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-    const coins: Coin[] = [];
+  const bounds = board.getCellBounds(currentCell); 
+  const pit = leaflet.rectangle(bounds) as leaflet.Layer;
+  const coins: Coin[] = [];
     const numOfCoins = Number(
       (luck(`${currentCell.i}, ${currentCell.j}`) * 10).toFixed(0)
     );
+  console.log(currentCell.i, currentCell.j);
     for (let k = 0; k < numOfCoins; k++) {
       const newCoin: Coin = { location: currentCell, index: k };
       coins.push(newCoin);
@@ -126,15 +124,15 @@ function makePit(i: number, j: number) {
 
       return container;
     });
-    allPitData.set(currentCell, coins);
-    pit.addTo(map);
+  allPitData.set(currentCell, coins);
+  pit.addTo(map);
+}
+
+const currentPosition = playerMarker.getLatLng();
+for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
+  if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
+    makePit(i, j);
   }
 }
 
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-    if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-      makePit(i, j);
-    }
-  }
-}
+
