@@ -22,7 +22,6 @@ export const MERRILL_CLASSROOM = leaflet.latLng({
 const board = new Board(0.0001, 8);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 const playerInventory: Coin[] = [];
 const mapContainer = document.querySelector<HTMLElement>("#map")!;

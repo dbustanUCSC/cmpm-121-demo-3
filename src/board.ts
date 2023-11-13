@@ -1,7 +1,7 @@
 import leaflet from "leaflet";
-import { MERRILL_CLASSROOM } from "./main";
 
-const TILE_DEGREES = 1e-4;
+
+//const TILE_DEGREES = 1e-4;
 
 interface Cell {
   readonly i: number;
