@@ -17,21 +17,29 @@ interface Cell {
 
 class Geocache {
   coins: Geocoin[];
-  constructor(cell: Cell) {
+  container: leaflet.Layer | null;
+  constructor(cell: Cell, newContainer: leaflet.Layer) {
     this.coins = [];
     const numInitialCoins = Number(
       (luck(`${cell.i}, ${cell.j}`) * 10).toFixed(0)
     );
-    for (let i = 0; i < numInitialCoins; i++){
+    for (let i = 0; i < numInitialCoins; i++) {
       this.coins.push({ mintingLocation: cell, serialNumber: i });
     }
+    this.container = newContainer;
   }
   toMemento() {
-    return this.coins.map((coin) => [coin.mintingLocation.i, coin.mintingLocation.j, coin.serialNumber].toString()).join(`;`);
+    return this.coins
+      .map((coin) =>
+        [
+          coin.mintingLocation.i,
+          coin.mintingLocation.j,
+          coin.serialNumber,
+        ].toString()
+      )
+      .join(`;`);
   }
 }
-
-
 
 export const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
@@ -101,9 +109,9 @@ function handleButton(name: string) {
   }
   playerMarker.setLatLng(playerLatLng);
   map.setView(playerMarker.getLatLng());
-  pitFactory();
+  geocacheList.clear();
+  geocacheCreator();
 }
-
 
 function setInitialPlayerPos() {
   const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
@@ -112,32 +120,32 @@ function setInitialPlayerPos() {
   return playerMarker;
 }
 
-
-
-
-
-
-
 //we need this to in order to store instances of our geocaches with cells.
 const geocacheList = new Map<Cell, Geocache>();
 
 
-function makePit(i: number, j: number) {
-  const currentCell: Cell = { i: i, j: j };
+function checkDuplicate(cellInQuestion: Cell): boolean {
   const allEntries = geocacheList.entries();
   const allEntriesArray = Array.from(allEntries);
-
   for (const [cell] of allEntriesArray) {
-    if (cell.i == currentCell.i && cell.j == currentCell.j) {
-      return;
+    if (cell.i == cellInQuestion.i && cell.j == cellInQuestion.j) {
+      return true;
     }
   }
-  //console.log(geocacheList.get(currentCell));
+  return false;
+}
+
+function makeGeocache(i: number, j: number) {
+  const currentCell: Cell = { i: i, j: j };
+  const duplicate: boolean = checkDuplicate(currentCell);
+  if (duplicate) {
+    return;
+  }
   let coinDiv = document.createElement("div");
   const bounds = board.getCellBounds(currentCell);
-  const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-  const newGeocache = new Geocache(currentCell);
-  pit.bindPopup(() => {
+  const geocacheContainer = leaflet.rectangle(bounds) as leaflet.Layer;
+  const newGeocache = new Geocache(currentCell, geocacheContainer);
+  geocacheContainer.bindPopup(() => {
     const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
     const container = document.createElement("div");
@@ -184,53 +192,23 @@ function makePit(i: number, j: number) {
     return container;
   });
   geocacheList.set(currentCell, newGeocache);
-  pit.addTo(map);
+  geocacheContainer.addTo(map);
 }
 
-
-
-// function pitcheck() {
-//   const currentPosition = playerMarker.getLatLng();
-//   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
-//     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-//       const cell: Cell = { i: i, j: j };
-//       console.log(allPitData.get(cell));
-//     }
-//   }
-// }
-
-
-function pitFactory() {
+function geocacheCreator() {
   const currentPosition = playerMarker.getLatLng();
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-      const cellCheck: Cell = { i: i, j: j };
-      console.log(geocacheList.has(cellCheck));
-      makePit(i, j);
+      makeGeocache(i, j);
     }
   }
 }
-
-
-
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No coins yet...";
 const playerMarker = setInitialPlayerPos();
 
-pitFactory();
-
-console.log(geocacheList);
-
-const allEntries = geocacheList.entries();
-const allEntriesArray = Array.from(allEntries);
-
-for (const [cell, geocache] of allEntriesArray) {
-  console.log(`Cell: (${cell.i}, ${cell.j}), Geocache: `, geocache);
-  const celltest: Cell = { i: cell.i, j: cell.j };
-  console.log(celltest);
-  console.log(geocacheList.has(celltest));
-}
+geocacheCreator();
 
 
 
