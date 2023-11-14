@@ -15,17 +15,21 @@ interface Cell {
   readonly j: number;
 }
 
-// class Geocache {
-//   coins: Geocoin[];
-//   constructor(cell: Cell) {
-//     this.coins = [];
-//     const numInitialCoins = Math.floor(luck(["intialCoins", cell.i, cell.j].toString()) * 3);
-//     for (let i = 0; i < numInitialCoins; i++){
-//       this.coins.push({ mintingLocation: cell, serialNumber: i });
-//     }
-//   }
-  
-// }
+class Geocache {
+  coins: Geocoin[];
+  constructor(cell: Cell) {
+    this.coins = [];
+    const numInitialCoins = Number(
+      (luck(`${cell.i}, ${cell.j}`) * 10).toFixed(0)
+    );
+    for (let i = 0; i < numInitialCoins; i++){
+      this.coins.push({ mintingLocation: cell, serialNumber: i });
+    }
+  }
+  toMemento() {
+    return this.coins.map((coin) => [coin.mintingLocation.i, coin.mintingLocation.j, coin.serialNumber].toString()).join(`;`);
+  }
+}
 
 
 
@@ -111,33 +115,34 @@ function setInitialPlayerPos() {
 
 
 
-const allPitData = new Map<Cell, Geocoin[]>();
 
 
 
-
+//we need this to in order to store instances of our geocaches with cells.
+const geocacheList = new Map<Cell, Geocache>();
 
 
 function makePit(i: number, j: number) {
   const currentCell: Cell = { i: i, j: j };
+  const allEntries = geocacheList.entries();
+  const allEntriesArray = Array.from(allEntries);
+
+  for (const [cell] of allEntriesArray) {
+    if (cell.i == currentCell.i && cell.j == currentCell.j) {
+      return;
+    }
+  }
+  //console.log(geocacheList.get(currentCell));
   let coinDiv = document.createElement("div");
   const bounds = board.getCellBounds(currentCell);
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-  const coins: Geocoin[] = [];
-  const numOfCoins = Number(
-    (luck(`${currentCell.i}, ${currentCell.j}`) * 10).toFixed(0)
-  );
-  for (let k = 0; k < numOfCoins; k++) {
-    const newCoin: Geocoin = { mintingLocation: currentCell, serialNumber: k };
-    coins.push(newCoin);
-  }
+  const newGeocache = new Geocache(currentCell);
   pit.bindPopup(() => {
     const NO_COINS = 0;
-    const currentCellCoins = allPitData.get(currentCell)!;
-    console.log("Current Cell Coins = ", currentCellCoins);
+    const currentCellCoins = newGeocache.coins;
     const container = document.createElement("div");
     container.innerHTML = `
-                  <div>There is a pit here at "${currentCell.i},${currentCell.j}". It has <span id="value">${coins.length}</span> coins.</div>
+                  <div>There is a pit here at "${currentCell.i},${currentCell.j}". It has <span id="value">${currentCellCoins.length}</span> coins.</div>
                   <button id="poke">take</button> </div>
                   <button id="deposit">deposit</button>`;
     currentCellCoins.forEach((coin) => {
@@ -178,9 +183,11 @@ function makePit(i: number, j: number) {
     });
     return container;
   });
-  allPitData.set(currentCell, coins);
+  geocacheList.set(currentCell, newGeocache);
   pit.addTo(map);
 }
+
+
 
 // function pitcheck() {
 //   const currentPosition = playerMarker.getLatLng();
@@ -197,6 +204,8 @@ function pitFactory() {
   const currentPosition = playerMarker.getLatLng();
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
+      const cellCheck: Cell = { i: i, j: j };
+      console.log(geocacheList.has(cellCheck));
       makePit(i, j);
     }
   }
@@ -211,7 +220,17 @@ const playerMarker = setInitialPlayerPos();
 
 pitFactory();
 
+console.log(geocacheList);
 
+const allEntries = geocacheList.entries();
+const allEntriesArray = Array.from(allEntries);
+
+for (const [cell, geocache] of allEntriesArray) {
+  console.log(`Cell: (${cell.i}, ${cell.j}), Geocache: `, geocache);
+  const celltest: Cell = { i: cell.i, j: cell.j };
+  console.log(celltest);
+  console.log(geocacheList.has(celltest));
+}
 
 
 
