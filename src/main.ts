@@ -15,17 +15,17 @@ interface Cell {
   readonly j: number;
 }
 
-class Geocache {
-  coins: Geocoin[];
-  constructor(cell: Cell) {
-    this.coins = [];
-    const numInitialCoins = Math.floor(luck(["intialCoins", cell.i, cell.j].toString()) * 3);
-    for (let i = 0; i < numInitialCoins; i++){
-      this.coins.push({ mintingLocation: cell, serialNumber: i });
-    }
-  }
+// class Geocache {
+//   coins: Geocoin[];
+//   constructor(cell: Cell) {
+//     this.coins = [];
+//     const numInitialCoins = Math.floor(luck(["intialCoins", cell.i, cell.j].toString()) * 3);
+//     for (let i = 0; i < numInitialCoins; i++){
+//       this.coins.push({ mintingLocation: cell, serialNumber: i });
+//     }
+//   }
   
-}
+// }
 
 
 
@@ -58,7 +58,7 @@ leaflet
   .addTo(map);
 
 const buttonNames = ["north", "south", "west", "east", "sensor"];
-const allButtons: HTMLButtonElement[] = [];
+//const allButtons: HTMLButtonElement[] = [];
 
 buttonNames.forEach((buttonName) => {
   const selector = `#${buttonName}`;
