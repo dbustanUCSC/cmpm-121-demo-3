@@ -109,6 +109,9 @@ function handleButton(name: string) {
   }
   playerMarker.setLatLng(playerLatLng);
   map.setView(playerMarker.getLatLng());
+  geocacheList.forEach((geocache) => {
+    geocache.container?.remove();
+  });
   geocacheList.clear();
   geocacheCreator();
 }
@@ -122,7 +125,6 @@ function setInitialPlayerPos() {
 
 //we need this to in order to store instances of our geocaches with cells.
 const geocacheList = new Map<Cell, Geocache>();
-
 
 function checkDuplicate(cellInQuestion: Cell): boolean {
   const allEntries = geocacheList.entries();
@@ -209,6 +211,3 @@ statusPanel.innerHTML = "No coins yet...";
 const playerMarker = setInitialPlayerPos();
 
 geocacheCreator();
-
-
-
