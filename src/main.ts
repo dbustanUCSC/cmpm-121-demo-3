@@ -115,8 +115,9 @@ function handleButton(name: string) {
   geocacheList.forEach((geocache, cell) => {
     const cellString = [cell.i, cell.j].toString();
     mapOfMementos.set(cellString, geocache.toMemento());
-    geocache.container?.remove();
+    map.removeLayer(geocache.container!);
   });
+  geocacheList.clear();
   geocacheCreator();
 }
 
@@ -130,14 +131,19 @@ function setInitialPlayerPos() {
 
 const geocacheList = new Map<Cell, Geocache>();
 
-function checkDuplicate(geocacheInQuestion: Geocache) {
-  geocacheList.forEach((_geocache, cell) => {
-    if (cell.i == geocacheInQuestion.location.i && cell.j == geocacheInQuestion.location.j) {
-      const cellString = [cell.i, cell.j].toString();
+function checkDuplicate(geocacheInQuestion: Geocache): boolean {
+  let foundDuplicate = false;
+  const cellString = [geocacheInQuestion.location.i, geocacheInQuestion.location.j].toString();
+  mapOfMementos.forEach((_geocache, cell) => {
+    if (cell == cellString) {
       const previousCoinData = mapOfMementos.get(cellString)!;
       geocacheInQuestion.fromMemento(previousCoinData);
-    }
+      foundDuplicate = true;
+      return;
+    } 
+    
   });
+  return foundDuplicate;
 }
 
 
@@ -148,10 +154,10 @@ function makeGeocache(i: number, j: number) {
   const bounds = board.getCellBounds(currentCell);
   const geocacheContainer = leaflet.rectangle(bounds) as leaflet.Layer;
   const newGeocache = new Geocache(currentCell, geocacheContainer);
- checkDuplicate(newGeocache);
+  const shouldntAdd = checkDuplicate(newGeocache);
  const cellString = [currentCell.i, currentCell.j].toString();
   
-  geocacheContainer.bindPopup(() => {
+  newGeocache.container!.bindPopup(() => {
     const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
     const container = document.createElement("div");
@@ -170,7 +176,6 @@ function makeGeocache(i: number, j: number) {
       if (currentCellCoins.length > NO_COINS) {
         const coinToCollect: Geocoin = currentCellCoins.pop()!;
         mapOfMementos.set(cellString, newGeocache.toMemento());
-        console.log("hi");
         playerInventory.push(coinToCollect);
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           currentCellCoins.length.toString();
@@ -199,7 +204,9 @@ function makeGeocache(i: number, j: number) {
     });
     return container;
   });
-  geocacheList.set(currentCell, newGeocache);
+    geocacheList.set(currentCell, newGeocache);
+  
+  
   geocacheContainer.addTo(map);
 }
 
@@ -210,6 +217,7 @@ function geocacheCreator() {
       makeGeocache(i, j);
     }
   }
+  console.log(geocacheList);
 }
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
