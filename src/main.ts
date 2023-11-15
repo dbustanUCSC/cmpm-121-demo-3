@@ -17,10 +17,6 @@ interface Cell {
 
 const mapOfMementos = new Map<string, string>();
 
-function storeMementosForCell(cell: Cell, mementos: string) {
-  const key = `${cell.i}_${cell.j}`;
-  mapOfMementos.set(key, mementos);
-}
 
 class Geocache {
   coins: Geocoin[];
@@ -43,7 +39,6 @@ class Geocache {
   }
   fromMemento(jsoncoin: string) {
     const parsedArray = JSON.parse(jsoncoin) as Geocoin[];
-    //console.log(parsedArray);
     this.coins = parsedArray;
   }
   
@@ -78,7 +73,7 @@ leaflet
   .addTo(map);
 
 const buttonNames = ["north", "south", "west", "east", "sensor"];
-//const allButtons: HTMLButtonElement[] = [];
+
 
 buttonNames.forEach((buttonName) => {
   const selector = `#${buttonName}`;
@@ -122,7 +117,6 @@ function handleButton(name: string) {
     mapOfMementos.set(cellString, geocache.toMemento());
     geocache.container?.remove();
   });
-  //geocacheList.clear();
   geocacheCreator();
 }
 
@@ -133,15 +127,15 @@ function setInitialPlayerPos() {
   return playerMarker;
 }
 
-//we need this to in order to store instances of our geocaches with cells.
+
 const geocacheList = new Map<Cell, Geocache>();
 
 function checkDuplicate(geocacheInQuestion: Geocache) {
-  geocacheList.forEach((geocache, cell) => {
+  geocacheList.forEach((_geocache, cell) => {
     if (cell.i == geocacheInQuestion.location.i && cell.j == geocacheInQuestion.location.j) {
       const cellString = [cell.i, cell.j].toString();
-      console.log("cell i:", cell.i, "cell j:", cell.j);
-      geocacheInQuestion.fromMemento(mapOfMementos.get(cellString)!);
+      const previousCoinData = mapOfMementos.get(cellString)!;
+      geocacheInQuestion.fromMemento(previousCoinData);
     }
   });
 }
