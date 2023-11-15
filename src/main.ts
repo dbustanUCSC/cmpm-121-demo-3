@@ -15,10 +15,19 @@ interface Cell {
   readonly j: number;
 }
 
+const mapOfMementos = new Map<string, string>();
+
+function storeMementosForCell(cell: Cell, mementos: string) {
+  const key = `${cell.i}_${cell.j}`;
+  mapOfMementos.set(key, mementos);
+}
+
 class Geocache {
   coins: Geocoin[];
+  location: Cell;
   container: leaflet.Layer | null;
   constructor(cell: Cell, newContainer: leaflet.Layer) {
+    this.location = cell;
     this.coins = [];
     const numInitialCoins = Number(
       (luck(`${cell.i}, ${cell.j}`) * 10).toFixed(0)
@@ -29,16 +38,15 @@ class Geocache {
     this.container = newContainer;
   }
   toMemento() {
-    return this.coins
-      .map((coin) =>
-        [
-          coin.mintingLocation.i,
-          coin.mintingLocation.j,
-          coin.serialNumber,
-        ].toString()
-      )
-      .join(`;`);
+    const jsoncoin:string = JSON.stringify(this.coins);
+    return jsoncoin;
   }
+  fromMemento(jsoncoin: string) {
+    const parsedArray = JSON.parse(jsoncoin) as Geocoin[];
+    //console.log(parsedArray);
+    this.coins = parsedArray;
+  }
+  
 }
 
 export const MERRILL_CLASSROOM = leaflet.latLng({
@@ -109,10 +117,12 @@ function handleButton(name: string) {
   }
   playerMarker.setLatLng(playerLatLng);
   map.setView(playerMarker.getLatLng());
-  geocacheList.forEach((geocache) => {
+  geocacheList.forEach((geocache, cell) => {
+    const cellString = [cell.i, cell.j].toString();
+    mapOfMementos.set(cellString, geocache.toMemento());
     geocache.container?.remove();
   });
-  geocacheList.clear();
+  //geocacheList.clear();
   geocacheCreator();
 }
 
@@ -126,27 +136,27 @@ function setInitialPlayerPos() {
 //we need this to in order to store instances of our geocaches with cells.
 const geocacheList = new Map<Cell, Geocache>();
 
-function checkDuplicate(cellInQuestion: Cell): boolean {
-  const allEntries = geocacheList.entries();
-  const allEntriesArray = Array.from(allEntries);
-  for (const [cell] of allEntriesArray) {
-    if (cell.i == cellInQuestion.i && cell.j == cellInQuestion.j) {
-      return true;
+function checkDuplicate(geocacheInQuestion: Geocache) {
+  geocacheList.forEach((geocache, cell) => {
+    if (cell.i == geocacheInQuestion.location.i && cell.j == geocacheInQuestion.location.j) {
+      const cellString = [cell.i, cell.j].toString();
+      console.log("cell i:", cell.i, "cell j:", cell.j);
+      geocacheInQuestion.fromMemento(mapOfMementos.get(cellString)!);
     }
-  }
-  return false;
+  });
 }
+
+
 
 function makeGeocache(i: number, j: number) {
   const currentCell: Cell = { i: i, j: j };
-  const duplicate: boolean = checkDuplicate(currentCell);
-  if (duplicate) {
-    return;
-  }
   let coinDiv = document.createElement("div");
   const bounds = board.getCellBounds(currentCell);
   const geocacheContainer = leaflet.rectangle(bounds) as leaflet.Layer;
   const newGeocache = new Geocache(currentCell, geocacheContainer);
+ checkDuplicate(newGeocache);
+ const cellString = [currentCell.i, currentCell.j].toString();
+  
   geocacheContainer.bindPopup(() => {
     const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
@@ -165,6 +175,8 @@ function makeGeocache(i: number, j: number) {
     poke.addEventListener("click", () => {
       if (currentCellCoins.length > NO_COINS) {
         const coinToCollect: Geocoin = currentCellCoins.pop()!;
+        mapOfMementos.set(cellString, newGeocache.toMemento());
+        console.log("hi");
         playerInventory.push(coinToCollect);
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           currentCellCoins.length.toString();
