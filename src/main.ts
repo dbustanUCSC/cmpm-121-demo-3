@@ -83,6 +83,7 @@ buttonNames.forEach((buttonName) => {
   });
 });
 
+
 function handleButton(name: string) {
   const playerLatLng = playerMarker.getLatLng();
   switch (name) {
@@ -121,6 +122,7 @@ function handleButton(name: string) {
   geocacheCreator();
 }
 
+
 function setInitialPlayerPos() {
   const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
   playerMarker.bindTooltip("That's you!");
@@ -131,19 +133,14 @@ function setInitialPlayerPos() {
 
 const geocacheList = new Map<Cell, Geocache>();
 
-function checkDuplicate(geocacheInQuestion: Geocache): boolean {
-  let foundDuplicate = false;
+function checkDuplicate(geocacheInQuestion: Geocache) {
   const cellString = [geocacheInQuestion.location.i, geocacheInQuestion.location.j].toString();
   mapOfMementos.forEach((_geocache, cell) => {
     if (cell == cellString) {
       const previousCoinData = mapOfMementos.get(cellString)!;
       geocacheInQuestion.fromMemento(previousCoinData);
-      foundDuplicate = true;
-      return;
     } 
-    
   });
-  return foundDuplicate;
 }
 
 
@@ -154,9 +151,8 @@ function makeGeocache(i: number, j: number) {
   const bounds = board.getCellBounds(currentCell);
   const geocacheContainer = leaflet.rectangle(bounds) as leaflet.Layer;
   const newGeocache = new Geocache(currentCell, geocacheContainer);
-  const shouldntAdd = checkDuplicate(newGeocache);
+  checkDuplicate(newGeocache);
  const cellString = [currentCell.i, currentCell.j].toString();
-  
   newGeocache.container!.bindPopup(() => {
     const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
@@ -217,7 +213,7 @@ function geocacheCreator() {
       makeGeocache(i, j);
     }
   }
-  console.log(geocacheList);
+  //console.log(geocacheList);
 }
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
