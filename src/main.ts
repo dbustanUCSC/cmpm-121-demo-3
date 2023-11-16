@@ -10,6 +10,11 @@ interface Geocoin {
   serialNumber: number;
 }
 
+const options = {
+  enableHighAccuracy: true,
+  maximumAge: 0,
+  timeout: Infinity,
+};
 const momentosByCellKey = new Map<string, string>();
 
 class Geocache {
@@ -88,12 +93,18 @@ function handleButton(name: string) {
       playerLatLng.lng -= TILE_DEGREES;
       break;
     case "sensor":
-      navigator.geolocation.watchPosition((position) => {
-        playerMarker.setLatLng(
-          leaflet.latLng(position.coords.latitude, position.coords.longitude)
-        );
-        map.setView(playerMarker.getLatLng());
-      });
+      navigator.geolocation.watchPosition(
+        (position) => {
+          playerMarker.setLatLng(
+            leaflet.latLng(position.coords.latitude, position.coords.longitude)
+          );
+          map.setView(playerMarker.getLatLng());
+          despawnGeocaches();
+          spawnGeocachesNearPlayer();
+        },
+        undefined,
+        options
+      );
       break;
   }
 
