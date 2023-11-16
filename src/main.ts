@@ -3,27 +3,18 @@ import "./style.css";
 import leaflet from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
-import { Board } from "./board.ts";
+import { Cell, Board } from "./board.ts";
 
 interface Geocoin {
   mintingLocation: Cell;
   serialNumber: number;
 }
 
-interface Cell {
-  readonly i: number;
-  readonly j: number;
-}
-
-const mapOfMementos = new Map<string, string>();
-
+const momentosByCellKey = new Map<string, string>();
 
 class Geocache {
   coins: Geocoin[];
-  location: Cell;
-  container: leaflet.Layer | null;
-  constructor(cell: Cell, newContainer: leaflet.Layer) {
-    this.location = cell;
+  constructor(readonly cell: Cell, readonly container: leaflet.Layer) {
     this.coins = [];
     const numInitialCoins = Number(
       (luck(`${cell.i}, ${cell.j}`) * 10).toFixed(0)
@@ -31,17 +22,15 @@ class Geocache {
     for (let i = 0; i < numInitialCoins; i++) {
       this.coins.push({ mintingLocation: cell, serialNumber: i });
     }
-    this.container = newContainer;
   }
-  toMemento() {
-    const jsoncoin:string = JSON.stringify(this.coins);
-    return jsoncoin;
+  toMomento() {
+    const jsonCoin: string = JSON.stringify(this.coins);
+    return jsonCoin;
   }
-  fromMemento(jsoncoin: string) {
+  fromMomento(jsoncoin: string) {
     const parsedArray = JSON.parse(jsoncoin) as Geocoin[];
     this.coins = parsedArray;
   }
-  
 }
 
 export const MERRILL_CLASSROOM = leaflet.latLng({
@@ -68,12 +57,12 @@ leaflet
   .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution:
+      // eslint-disable-next-line @typescript-eslint/quotes
       '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   })
   .addTo(map);
 
 const buttonNames = ["north", "south", "west", "east", "sensor"];
-
 
 buttonNames.forEach((buttonName) => {
   const selector = `#${buttonName}`;
@@ -83,7 +72,6 @@ buttonNames.forEach((buttonName) => {
   });
 });
 
-
 function handleButton(name: string) {
   const playerLatLng = playerMarker.getLatLng();
   switch (name) {
@@ -92,15 +80,12 @@ function handleButton(name: string) {
       break;
     case "south":
       playerLatLng.lat -= TILE_DEGREES;
-      playerMarker.setLatLng(playerLatLng);
       break;
     case "east":
       playerLatLng.lng += TILE_DEGREES;
-      playerMarker.setLatLng(playerLatLng);
       break;
     case "west":
       playerLatLng.lng -= TILE_DEGREES;
-      playerMarker.setLatLng(playerLatLng);
       break;
     case "sensor":
       navigator.geolocation.watchPosition((position) => {
@@ -111,17 +96,12 @@ function handleButton(name: string) {
       });
       break;
   }
+
   playerMarker.setLatLng(playerLatLng);
   map.setView(playerMarker.getLatLng());
-  geocacheList.forEach((geocache, cell) => {
-    const cellString = [cell.i, cell.j].toString();
-    mapOfMementos.set(cellString, geocache.toMemento());
-    map.removeLayer(geocache.container!);
-  });
-  geocacheList.clear();
-  geocacheCreator();
+  despawnGeocaches();
+  spawnGeocachesNearPlayer();
 }
-
 
 function setInitialPlayerPos() {
   const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
@@ -130,30 +110,16 @@ function setInitialPlayerPos() {
   return playerMarker;
 }
 
+const activeGeocaches = new Map<Cell, Geocache>();
 
-const geocacheList = new Map<Cell, Geocache>();
-
-function checkDuplicate(geocacheInQuestion: Geocache) {
-  const cellString = [geocacheInQuestion.location.i, geocacheInQuestion.location.j].toString();
-  mapOfMementos.forEach((_geocache, cell) => {
-    if (cell == cellString) {
-      const previousCoinData = mapOfMementos.get(cellString)!;
-      geocacheInQuestion.fromMemento(previousCoinData);
-    } 
-  });
-}
-
-
-
-function makeGeocache(i: number, j: number) {
+function makeGeocache(i: number, j: number): Geocache {
   const currentCell: Cell = { i: i, j: j };
   let coinDiv = document.createElement("div");
   const bounds = board.getCellBounds(currentCell);
   const geocacheContainer = leaflet.rectangle(bounds) as leaflet.Layer;
   const newGeocache = new Geocache(currentCell, geocacheContainer);
-  checkDuplicate(newGeocache);
- const cellString = [currentCell.i, currentCell.j].toString();
-  newGeocache.container!.bindPopup(() => {
+  const cellString = [currentCell.i, currentCell.j].toString();
+  newGeocache.container.bindPopup(() => {
     const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
     const container = document.createElement("div");
@@ -171,7 +137,7 @@ function makeGeocache(i: number, j: number) {
     poke.addEventListener("click", () => {
       if (currentCellCoins.length > NO_COINS) {
         const coinToCollect: Geocoin = currentCellCoins.pop()!;
-        mapOfMementos.set(cellString, newGeocache.toMemento());
+        momentosByCellKey.set(cellString, newGeocache.toMomento());
         playerInventory.push(coinToCollect);
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           currentCellCoins.length.toString();
@@ -200,24 +166,39 @@ function makeGeocache(i: number, j: number) {
     });
     return container;
   });
-    geocacheList.set(currentCell, newGeocache);
-  
-  
+  activeGeocaches.set(currentCell, newGeocache);
+
   geocacheContainer.addTo(map);
+  return newGeocache;
 }
 
-function geocacheCreator() {
+function spawnGeocachesNearPlayer() {
   const currentPosition = playerMarker.getLatLng();
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-      makeGeocache(i, j);
+      const geocache = makeGeocache(i, j);
+
+      const cellString = [geocache.cell.i, geocache.cell.j].toString();
+      const momento = momentosByCellKey.get(cellString);
+      if (momento !== undefined) {
+        geocache.fromMomento(momento);
+      }
     }
   }
   //console.log(geocacheList);
+}
+
+function despawnGeocaches() {
+  activeGeocaches.forEach((geocache, cell) => {
+    const cellString = [cell.i, cell.j].toString();
+    momentosByCellKey.set(cellString, geocache.toMomento());
+    map.removeLayer(geocache.container);
+  });
+  activeGeocaches.clear();
 }
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No coins yet...";
 const playerMarker = setInitialPlayerPos();
 
-geocacheCreator();
+spawnGeocachesNearPlayer();

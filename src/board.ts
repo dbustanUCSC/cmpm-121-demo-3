@@ -1,9 +1,6 @@
 import leaflet from "leaflet";
 
-
-//const TILE_DEGREES = 1e-4;
-
-interface Cell {
+export interface Cell {
   readonly i: number;
   readonly j: number;
 }
@@ -26,7 +23,7 @@ export class Board {
     if (!this.knownCells.has(key)) {
       this.knownCells.set(key, cell)!;
     }
-    
+
     return cell;
   }
 
@@ -34,7 +31,6 @@ export class Board {
     const i = Math.floor(point.lat / this.tileWidth);
     const j = Math.floor(point.lng / this.tileWidth);
     return this.getCanonicalCell({ i, j })!;
-
   }
 
   getCellBounds(cell: Cell): leaflet.LatLngBounds {
@@ -61,9 +57,8 @@ export class Board {
         j++
       ) {
         const cellInRadius: Cell = { i: originCell.i + i, j: originCell.j + j };
-        const canonicalCell: Cell  =
-        this.getCanonicalCell(cellInRadius);
-        resultCells.push(canonicalCell); 
+        const canonicalCell: Cell = this.getCanonicalCell(cellInRadius);
+        resultCells.push(canonicalCell);
       }
     }
 
