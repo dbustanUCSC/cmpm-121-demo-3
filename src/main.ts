@@ -99,8 +99,6 @@ function handleButton(name: string) {
             leaflet.latLng(position.coords.latitude, position.coords.longitude)
           );
           map.setView(playerMarker.getLatLng());
-          despawnGeocaches();
-          spawnGeocachesNearPlayer();
         },
         undefined,
         options
@@ -153,7 +151,6 @@ function makeGeocache(i: number, j: number): Geocache {
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           currentCellCoins.length.toString();
         statusPanel.innerHTML = `${playerInventory.length} coins accumulated`;
-
         const coinDivToRemove = container.lastChild;
         if (coinDivToRemove instanceof HTMLDivElement) {
           container.removeChild(coinDivToRemove);
