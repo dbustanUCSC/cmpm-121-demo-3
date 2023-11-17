@@ -58,6 +58,21 @@ const map = leaflet.map(mapContainer, {
   scrollWheelZoom: false,
 });
 
+map.on("zoomend", () => {
+  checkGeocachesVisibility();
+});
+
+function checkGeocachesVisibility() {
+  const mapBounds = map.getBounds();
+  activeGeocaches.forEach((geocache, cell) => {
+    const geocacheLatLng = board.getCellBounds(cell);
+    if (!mapBounds.contains(geocacheLatLng)) {
+      despawnGeocaches();
+      spawnGeocachesNearPlayer();
+    }
+  });
+}
+
 leaflet
   .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
