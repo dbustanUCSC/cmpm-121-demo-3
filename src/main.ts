@@ -64,7 +64,7 @@ map.on("zoomend", () => {
 
 function checkGeocachesVisibility() {
   const mapBounds = map.getBounds();
-  activeGeocaches.forEach((_geocache, cell) => {
+  activeGeocaches.forEach((geocache, cell) => {
     const geocacheLatLng = board.getCellBounds(cell);
     if (!mapBounds.contains(geocacheLatLng)) {
       despawnGeocaches();
@@ -93,19 +93,32 @@ buttonNames.forEach((buttonName) => {
 });
 
 function handleButton(name: string) {
-  const playerLatLng = playerMarker.getLatLng();
+  const currentLatLng = playerMarker.getLatLng();
+  let newlatLng: leaflet.LatLng;
   switch (name) {
     case "north":
-      playerLatLng.lat += TILE_DEGREES;
+      newlatLng = leaflet.latLng(
+        currentLatLng.lat + TILE_DEGREES,
+        currentLatLng.lng
+      );
       break;
     case "south":
-      playerLatLng.lat -= TILE_DEGREES;
+      newlatLng = leaflet.latLng(
+        currentLatLng.lat - TILE_DEGREES,
+        currentLatLng.lng
+      );
       break;
     case "east":
-      playerLatLng.lng += TILE_DEGREES;
+      newlatLng = leaflet.latLng(
+        currentLatLng.lat,
+        currentLatLng.lng + TILE_DEGREES
+      );
       break;
     case "west":
-      playerLatLng.lng -= TILE_DEGREES;
+      newlatLng = leaflet.latLng(
+        currentLatLng.lat,
+        currentLatLng.lng - TILE_DEGREES
+      );
       break;
     case "sensor":
       navigator.geolocation.watchPosition(
@@ -113,6 +126,7 @@ function handleButton(name: string) {
           playerMarker.setLatLng(
             leaflet.latLng(position.coords.latitude, position.coords.longitude)
           );
+
           map.setView(playerMarker.getLatLng());
         },
         undefined,
@@ -120,9 +134,10 @@ function handleButton(name: string) {
       );
       break;
   }
-
-  playerMarker.setLatLng(playerLatLng);
+  playerMovementHistory.push(currentLatLng);
   map.setView(playerMarker.getLatLng());
+  playerMarker.setLatLng(newlatLng!);
+  renderMovementHistory();
   despawnGeocaches();
   spawnGeocachesNearPlayer();
 }
@@ -190,7 +205,6 @@ function makeGeocache(i: number, j: number): Geocache {
     return container;
   });
   activeGeocaches.set(currentCell, newGeocache);
-
   geocacheContainer.addTo(map);
   return newGeocache;
 }
@@ -200,7 +214,6 @@ function spawnGeocachesNearPlayer() {
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
       const geocache = makeGeocache(i, j);
-
       const cellString = [geocache.cell.i, geocache.cell.j].toString();
       const momento = momentosByCellKey.get(cellString);
       if (momento !== undefined) {
@@ -223,5 +236,18 @@ function despawnGeocaches() {
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No coins yet...";
 const playerMarker = setInitialPlayerPos();
+const playerMovementHistory: leaflet.LatLng[] = [];
+let playerMovementPolyline: leaflet.Polyline | null = null;
 
 spawnGeocachesNearPlayer();
+
+function renderMovementHistory() {
+  playerMovementPolyline?.remove();
+  playerMovementPolyline = leaflet.polyline(playerMovementHistory, {
+    color: "blue",
+    weight: 3,
+    opacity: 0.7,
+  });
+
+  playerMovementPolyline.addTo(map);
+}
