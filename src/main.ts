@@ -64,7 +64,7 @@ map.on("zoomend", () => {
 
 function checkGeocachesVisibility() {
   const mapBounds = map.getBounds();
-  activeGeocaches.forEach((geocache, cell) => {
+  activeGeocaches.forEach((_geocache, cell) => {
     const geocacheLatLng = board.getCellBounds(cell);
     if (!mapBounds.contains(geocacheLatLng)) {
       despawnGeocaches();
