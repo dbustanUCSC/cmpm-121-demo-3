@@ -157,9 +157,8 @@ function handleFunctions(name: string) {
         player.playerMarker!.setLatLng(
           leaflet.latLng(position.coords.latitude, position.coords.longitude)
         );
-        despawnGeocaches();
-        spawnGeocachesNearPlayer();
-        map.setView(player.playerMarker!.getLatLng());
+        checkGeocachesVisibility();
+        //map.setView(player.playerMarker!.getLatLng());
       },
       undefined,
       options
@@ -168,6 +167,7 @@ function handleFunctions(name: string) {
   if (name === "reset") {
     deleteData();
   }
+  map.setView(player.playerMarker!.getLatLng());
 }
 
 function deleteData() {
