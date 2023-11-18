@@ -15,7 +15,54 @@ const options = {
   maximumAge: 0,
   timeout: Infinity,
 };
-const momentosByCellKey = new Map<string, string>();
+let momentosByCellKey = new Map<string, string>();
+
+class Player {
+  playerMarker: null | leaflet.Marker = null;
+  inventory: Geocoin[] = [];
+  playerMovementHistory: leaflet.LatLng[] = [];
+  playerMovementPolyline: leaflet.Polyline | null = null;
+  constructor() {
+    this.setInitialPlayerPos();
+  }
+  setInitialPlayerPos() {
+    if (this.playerMarker != null) {
+      this.playerMarker.removeFrom(map);
+    }
+    this.playerMarker = leaflet.marker(MERRILL_CLASSROOM);
+    map.setView(this.playerMarker.getLatLng());
+    this.playerMarker.bindTooltip("That's you!");
+    this.playerMarker.addTo(map);
+  }
+  toMomento() {
+    const jsonCoin: string = JSON.stringify(this.inventory);
+    const jsonPlayerMovementHistory = JSON.stringify(
+      this.playerMovementHistory
+    );
+    return {
+      inventory: jsonCoin,
+      playerMovementHistory: jsonPlayerMovementHistory,
+    };
+  }
+  fromMomento(data: { inventory: string; playerMovementHistory: string }) {
+    const parsedCoinArray = JSON.parse(data.inventory) as Geocoin[];
+    this.inventory = parsedCoinArray;
+    const parsedMovementArray = JSON.parse(
+      data.playerMovementHistory
+    ) as leaflet.LatLng[];
+    this.playerMovementHistory = parsedMovementArray;
+  }
+  renderMovementHistory() {
+    this.playerMovementPolyline?.remove();
+    this.playerMovementPolyline = leaflet.polyline(this.playerMovementHistory, {
+      color: "blue",
+      weight: 3,
+      opacity: 0.7,
+    });
+
+    this.playerMovementPolyline.addTo(map);
+  }
+}
 
 class Geocache {
   coins: Geocoin[];
@@ -42,11 +89,11 @@ export const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
   lng: -122.0533,
 });
-let playerMarker: null | leaflet.Marker = null;
+
 const TILE_DEGREES = 0.0001;
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const PIT_SPAWN_PROBABILITY = 0.1;
-let playerInventory: Geocoin[] = [];
+//let playerInventory: Geocoin[] = [];
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 const board = new Board(TILE_DEGREES, 8);
 const map = leaflet.map(mapContainer, {
@@ -57,6 +104,7 @@ const map = leaflet.map(mapContainer, {
   zoomControl: false,
   scrollWheelZoom: false,
 });
+const player: Player = new Player();
 
 map.on("zoomend", () => {
   checkGeocachesVisibility();
@@ -106,12 +154,12 @@ function handleFunctions(name: string) {
   if (name === "sensor") {
     navigator.geolocation.watchPosition(
       (position) => {
-        playerMarker!.setLatLng(
+        player.playerMarker!.setLatLng(
           leaflet.latLng(position.coords.latitude, position.coords.longitude)
         );
         despawnGeocaches();
         spawnGeocachesNearPlayer();
-        map.setView(playerMarker!.getLatLng());
+        map.setView(player.playerMarker!.getLatLng());
       },
       undefined,
       options
@@ -128,18 +176,21 @@ function deleteData() {
     map.removeLayer(geocache.container);
   });
   activeGeocaches.clear();
-  playerMovementHistory = [];
-  playerInventory = [];
+  player.playerMovementHistory = [];
+  player.inventory = [];
   statusPanel.innerHTML = "No coins yet...";
-  setInitialPlayerPos();
+  player.setInitialPlayerPos();
+  player.renderMovementHistory();
   despawnGeocaches();
   spawnGeocachesNearPlayer();
-  renderMovementHistory();
 }
 
 function handleDirection(name: string) {
-  const currentLatLng = playerMarker!.getLatLng();
-  let newlatLng: leaflet.LatLng;
+  const currentLatLng = player.playerMarker!.getLatLng();
+  let newlatLng: leaflet.LatLng = leaflet.latLng(
+    currentLatLng.lat,
+    currentLatLng.lng
+  );
   switch (name) {
     case "north":
       newlatLng = leaflet.latLng(
@@ -166,27 +217,17 @@ function handleDirection(name: string) {
       );
       break;
   }
-  playerMovementHistory.push(currentLatLng);
-  map.setView(playerMarker!.getLatLng());
-  playerMarker!.setLatLng(newlatLng!);
-  renderMovementHistory();
+  player.playerMovementHistory.push(currentLatLng);
+  map.setView(player.playerMarker!.getLatLng());
+  player.playerMarker!.setLatLng(newlatLng);
+  player.renderMovementHistory();
+  saveGameState();
   despawnGeocaches();
   spawnGeocachesNearPlayer();
 }
 
-function setInitialPlayerPos() {
-  if (playerMarker != null) {
-    playerMarker.removeFrom(map);
-  }
-  playerMarker = leaflet.marker(MERRILL_CLASSROOM);
-  map.setView(playerMarker.getLatLng());
-  playerMarker.bindTooltip("That's you!");
-  playerMarker.addTo(map);
-  return playerMarker;
-}
-
 const activeGeocaches = new Map<Cell, Geocache>();
-
+const NO_COINS = 0;
 function makeGeocache(i: number, j: number): Geocache {
   const currentCell: Cell = { i: i, j: j };
   let coinDiv = document.createElement("div");
@@ -195,7 +236,6 @@ function makeGeocache(i: number, j: number): Geocache {
   const newGeocache = new Geocache(currentCell, geocacheContainer);
   const cellString = [currentCell.i, currentCell.j].toString();
   newGeocache.container.bindPopup(() => {
-    const NO_COINS = 0;
     const currentCellCoins = newGeocache.coins;
     const container = document.createElement("div");
     container.innerHTML = `
@@ -213,10 +253,11 @@ function makeGeocache(i: number, j: number): Geocache {
       if (currentCellCoins.length > NO_COINS) {
         const coinToCollect: Geocoin = currentCellCoins.pop()!;
         momentosByCellKey.set(cellString, newGeocache.toMomento());
-        playerInventory.push(coinToCollect);
+        player.inventory.push(coinToCollect);
+        saveGameState();
         container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           currentCellCoins.length.toString();
-        statusPanel.innerHTML = `${playerInventory.length} coins accumulated`;
+        statusPanel.innerHTML = `${player.inventory.length} coins accumulated`;
         const coinDivToRemove = container.lastChild;
         if (coinDivToRemove instanceof HTMLDivElement) {
           container.removeChild(coinDivToRemove);
@@ -225,18 +266,19 @@ function makeGeocache(i: number, j: number): Geocache {
     });
     const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
     deposit.addEventListener("click", () => {
-      if (playerInventory.length <= NO_COINS) return;
-      const coinToDeposit = playerInventory.pop()!;
+      if (player.inventory.length <= NO_COINS) return;
+      const coinToDeposit = player.inventory.pop()!;
       currentCellCoins.push(coinToDeposit);
+      saveGameState();
       coinDiv = document.createElement("div");
       coinDiv.textContent = `${coinToDeposit.mintingLocation.i}:${coinToDeposit.mintingLocation.j}#${coinToDeposit.serialNumber}`;
       container.append(coinDiv);
       container.querySelector<HTMLSpanElement>("#value")!.innerHTML =
         currentCellCoins.length.toString();
       statusPanel.innerHTML =
-        playerInventory.length == NO_COINS
+        player.inventory.length == NO_COINS
           ? `No coins yet...`
-          : `${playerInventory.length} coins accumulated`;
+          : `${player.inventory.length} coins accumulated`;
     });
     return container;
   });
@@ -246,7 +288,7 @@ function makeGeocache(i: number, j: number): Geocache {
 }
 
 function spawnGeocachesNearPlayer() {
-  const currentPosition = playerMarker!.getLatLng();
+  const currentPosition = player.playerMarker!.getLatLng();
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
       const geocache = makeGeocache(i, j);
@@ -257,7 +299,35 @@ function spawnGeocachesNearPlayer() {
       }
     }
   }
-  //console.log(geocacheList);
+}
+const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
+function saveGameState() {
+  localStorage.setItem("playerData", JSON.stringify(player.toMomento()));
+  const momentosArray = Array.from(momentosByCellKey.entries());
+  localStorage.setItem("geocacheState", JSON.stringify(momentosArray));
+}
+
+loadGameState();
+function loadGameState() {
+  const geocacheString = localStorage.getItem("geocacheState");
+  console.log(geocacheString);
+  const playerdataString = localStorage.getItem("playerData");
+  if (geocacheString) {
+    const momentosArray = JSON.parse(geocacheString) as [string, string][];
+    momentosByCellKey = new Map<string, string>(momentosArray);
+  }
+  if (playerdataString) {
+    const playerdata = JSON.parse(playerdataString) as {
+      inventory: string;
+      playerMovementHistory: string;
+    };
+    player.fromMomento(playerdata);
+    statusPanel.innerHTML =
+      player.inventory.length == NO_COINS
+        ? `No coins yet...`
+        : `${player.inventory.length} coins accumulated`;
+    console.log(player.inventory);
+  }
 }
 
 function despawnGeocaches() {
@@ -269,21 +339,4 @@ function despawnGeocaches() {
   activeGeocaches.clear();
 }
 
-const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
-statusPanel.innerHTML = "No coins yet...";
-playerMarker = setInitialPlayerPos();
-let playerMovementHistory: leaflet.LatLng[] = [];
-let playerMovementPolyline: leaflet.Polyline | null = null;
-
 spawnGeocachesNearPlayer();
-
-function renderMovementHistory() {
-  playerMovementPolyline?.remove();
-  playerMovementPolyline = leaflet.polyline(playerMovementHistory, {
-    color: "blue",
-    weight: 3,
-    opacity: 0.7,
-  });
-
-  playerMovementPolyline.addTo(map);
-}
