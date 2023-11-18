@@ -11,7 +11,7 @@ interface Geocoin {
 }
 
 const options = {
-  enableHighAccuracy: true,
+  enableHighAccuracy: false,
   maximumAge: 0,
   timeout: Infinity,
 };
