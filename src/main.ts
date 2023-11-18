@@ -42,11 +42,11 @@ export const MERRILL_CLASSROOM = leaflet.latLng({
   lat: 36.9995,
   lng: -122.0533,
 });
-
+let playerMarker: null | leaflet.Marker = null;
 const TILE_DEGREES = 0.0001;
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const PIT_SPAWN_PROBABILITY = 0.1;
-const playerInventory: Geocoin[] = [];
+let playerInventory: Geocoin[] = [];
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 const board = new Board(TILE_DEGREES, 8);
 const map = leaflet.map(mapContainer, {
@@ -82,18 +82,63 @@ leaflet
   })
   .addTo(map);
 
-const buttonNames = ["north", "south", "west", "east", "sensor"];
+const directionButtons = ["north", "south", "west", "east", "sensor"];
 
-buttonNames.forEach((buttonName) => {
-  const selector = `#${buttonName}`;
+const otherFunctionalButtons = ["sensor", "reset"];
+
+directionButtons.forEach((direction) => {
+  const selector = `#${direction}`;
   const button: HTMLButtonElement = document.querySelector(selector)!;
   button.addEventListener("click", () => {
-    handleButton(buttonName);
+    handleDirection(direction);
   });
 });
 
-function handleButton(name: string) {
-  const currentLatLng = playerMarker.getLatLng();
+otherFunctionalButtons.forEach((functionality) => {
+  const selector = `#${functionality}`;
+  const button: HTMLButtonElement = document.querySelector(selector)!;
+  button.addEventListener("click", () => {
+    handleFunctions(functionality);
+  });
+});
+
+function handleFunctions(name: string) {
+  if (name === "sensor") {
+    navigator.geolocation.watchPosition(
+      (position) => {
+        playerMarker!.setLatLng(
+          leaflet.latLng(position.coords.latitude, position.coords.longitude)
+        );
+        despawnGeocaches();
+        spawnGeocachesNearPlayer();
+        map.setView(playerMarker!.getLatLng());
+      },
+      undefined,
+      options
+    );
+  }
+  if (name === "reset") {
+    deleteData();
+  }
+}
+
+function deleteData() {
+  momentosByCellKey.clear();
+  activeGeocaches.forEach((geocache) => {
+    map.removeLayer(geocache.container);
+  });
+  activeGeocaches.clear();
+  playerMovementHistory = [];
+  playerInventory = [];
+  statusPanel.innerHTML = "No coins yet...";
+  setInitialPlayerPos();
+  despawnGeocaches();
+  spawnGeocachesNearPlayer();
+  renderMovementHistory();
+}
+
+function handleDirection(name: string) {
+  const currentLatLng = playerMarker!.getLatLng();
   let newlatLng: leaflet.LatLng;
   switch (name) {
     case "north":
@@ -120,30 +165,21 @@ function handleButton(name: string) {
         currentLatLng.lng - TILE_DEGREES
       );
       break;
-    case "sensor":
-      navigator.geolocation.watchPosition(
-        (position) => {
-          playerMarker.setLatLng(
-            leaflet.latLng(position.coords.latitude, position.coords.longitude)
-          );
-
-          map.setView(playerMarker.getLatLng());
-        },
-        undefined,
-        options
-      );
-      break;
   }
   playerMovementHistory.push(currentLatLng);
-  map.setView(playerMarker.getLatLng());
-  playerMarker.setLatLng(newlatLng!);
+  map.setView(playerMarker!.getLatLng());
+  playerMarker!.setLatLng(newlatLng!);
   renderMovementHistory();
   despawnGeocaches();
   spawnGeocachesNearPlayer();
 }
 
 function setInitialPlayerPos() {
-  const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
+  if (playerMarker != null) {
+    playerMarker.removeFrom(map);
+  }
+  playerMarker = leaflet.marker(MERRILL_CLASSROOM);
+  map.setView(playerMarker.getLatLng());
   playerMarker.bindTooltip("That's you!");
   playerMarker.addTo(map);
   return playerMarker;
@@ -210,7 +246,7 @@ function makeGeocache(i: number, j: number): Geocache {
 }
 
 function spawnGeocachesNearPlayer() {
-  const currentPosition = playerMarker.getLatLng();
+  const currentPosition = playerMarker!.getLatLng();
   for (const { i, j } of board.getCellsNearPoint(currentPosition)) {
     if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
       const geocache = makeGeocache(i, j);
@@ -235,8 +271,8 @@ function despawnGeocaches() {
 
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No coins yet...";
-const playerMarker = setInitialPlayerPos();
-const playerMovementHistory: leaflet.LatLng[] = [];
+playerMarker = setInitialPlayerPos();
+let playerMovementHistory: leaflet.LatLng[] = [];
 let playerMovementPolyline: leaflet.Polyline | null = null;
 
 spawnGeocachesNearPlayer();
