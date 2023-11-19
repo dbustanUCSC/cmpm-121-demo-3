@@ -10,11 +10,6 @@ interface Geocoin {
   serialNumber: number;
 }
 
-const options = {
-  enableHighAccuracy: false,
-  maximumAge: 0,
-  timeout: Infinity,
-};
 let momentosByCellKey = new Map<string, string>();
 
 class Player {
@@ -93,7 +88,6 @@ export const MERRILL_CLASSROOM = leaflet.latLng({
 const TILE_DEGREES = 0.0001;
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const PIT_SPAWN_PROBABILITY = 0.1;
-//let playerInventory: Geocoin[] = [];
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 const board = new Board(TILE_DEGREES, 8);
 const map = leaflet.map(mapContainer, {
@@ -104,7 +98,6 @@ const map = leaflet.map(mapContainer, {
   zoomControl: false,
   scrollWheelZoom: false,
 });
-const player: Player = new Player();
 
 map.on("zoomend", () => {
   checkGeocachesVisibility();
@@ -130,35 +123,44 @@ leaflet
   })
   .addTo(map);
 
-const directionButtons = ["north", "south", "west", "east", "sensor"];
-
-const otherFunctionalButtons = ["sensor", "reset"];
-
-directionButtons.forEach((direction) => {
-  const selector = `#${direction}`;
-  const button: HTMLButtonElement = document.querySelector(selector)!;
-  button.addEventListener("click", () => {
-    handleDirection(direction);
+function informationRetrievalfromHTMl() {
+  const directionButtons = ["north", "south", "west", "east", "sensor"];
+  const otherFunctionalButtons = ["sensor", "reset"];
+  directionButtons.forEach((direction) => {
+    const selector = `#${direction}`;
+    const button: HTMLButtonElement = document.querySelector(selector)!;
+    button.addEventListener("click", () => {
+      handleDirection(direction);
+    });
   });
-});
 
-otherFunctionalButtons.forEach((functionality) => {
-  const selector = `#${functionality}`;
-  const button: HTMLButtonElement = document.querySelector(selector)!;
-  button.addEventListener("click", () => {
-    handleFunctions(functionality);
+  otherFunctionalButtons.forEach((functionality) => {
+    const selector = `#${functionality}`;
+    const button: HTMLButtonElement = document.querySelector(selector)!;
+    button.addEventListener("click", () => {
+      handleFunctionalButtons(functionality);
+    });
   });
-});
+}
 
-function handleFunctions(name: string) {
+informationRetrievalfromHTMl();
+
+const options = {
+  enableHighAccuracy: false,
+  maximumAge: 0,
+  timeout: Infinity,
+};
+
+function handleFunctionalButtons(name: string) {
   if (name === "sensor") {
     navigator.geolocation.watchPosition(
       (position) => {
         player.playerMarker!.setLatLng(
           leaflet.latLng(position.coords.latitude, position.coords.longitude)
         );
-        checkGeocachesVisibility();
-        //map.setView(player.playerMarker!.getLatLng());
+        despawnGeocaches();
+        spawnGeocachesNearPlayer();
+        map.setView(player.playerMarker!.getLatLng());
       },
       undefined,
       options
@@ -168,21 +170,6 @@ function handleFunctions(name: string) {
     deleteData();
   }
   map.setView(player.playerMarker!.getLatLng());
-}
-
-function deleteData() {
-  momentosByCellKey.clear();
-  activeGeocaches.forEach((geocache) => {
-    map.removeLayer(geocache.container);
-  });
-  activeGeocaches.clear();
-  player.playerMovementHistory = [];
-  player.inventory = [];
-  statusPanel.innerHTML = "No coins yet...";
-  player.setInitialPlayerPos();
-  player.renderMovementHistory();
-  despawnGeocaches();
-  spawnGeocachesNearPlayer();
 }
 
 function handleDirection(name: string) {
@@ -300,14 +287,30 @@ function spawnGeocachesNearPlayer() {
     }
   }
 }
+
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
+
+function deleteData() {
+  momentosByCellKey.clear();
+  activeGeocaches.forEach((geocache) => {
+    map.removeLayer(geocache.container);
+  });
+  activeGeocaches.clear();
+  player.playerMovementHistory = [];
+  player.inventory = [];
+  statusPanel.innerHTML = "No coins yet...";
+  player.setInitialPlayerPos();
+  player.renderMovementHistory();
+  despawnGeocaches();
+  spawnGeocachesNearPlayer();
+}
+
 function saveGameState() {
   localStorage.setItem("playerData", JSON.stringify(player.toMomento()));
   const momentosArray = Array.from(momentosByCellKey.entries());
   localStorage.setItem("geocacheState", JSON.stringify(momentosArray));
 }
 
-loadGameState();
 function loadGameState() {
   const geocacheString = localStorage.getItem("geocacheState");
   console.log(geocacheString);
@@ -339,4 +342,6 @@ function despawnGeocaches() {
   activeGeocaches.clear();
 }
 
+const player: Player = new Player();
+loadGameState();
 spawnGeocachesNearPlayer();
